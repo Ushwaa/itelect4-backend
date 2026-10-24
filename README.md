@@ -14,14 +14,15 @@ This project provides the backend API for the ITELECT4 frontend. It uses Express
 
 ## Project structure
 
-- `src/app.ts` - Express app configuration
-- `src/server.ts` - server startup
-- `src/config/db.ts` - MongoDB connection setup
-- `src/models/` - Mongoose models for User and Submission
+- `src/app.ts` - Express app configuration, CORS, and health routes
+- `src/server.ts` - local server startup
+- `src/config/db.ts` - MongoDB connection setup with reused connection logic for Vercel-style hosting
+- `src/models/` - Mongoose models for User, Submission, and Course
 - `src/controllers/` - auth and submission logic
-- `src/routes/` - endpoint registration
+- `src/routes/` - endpoint registration for auth, submissions, and courses
 - `src/middleware/` - JWT protection and error handling
 - `src/types/` - shared request/user types
+- `src/seed.ts` - database seeding for the public course list
 
 ## Local setup
 
@@ -43,16 +44,18 @@ npm run dev
 
 ## Required environment variables
 
-Create a `.env` file with:
+Create a `.env` file with values that match your machine or deployment:
 
 ```env
 PORT=4000
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/<database>?retryWrites=true&w=majority
 JWT_SECRET=your_very_strong_secret_here
-JWT_EXPIRES_IN=7d
+JWT_EXPIRES_IN=2h
 CORS_ORIGIN=http://localhost:5173
 ```
 
+> For a local MongoDB installation, the URI usually looks like `mongodb://127.0.0.1:27017/itelect4`.
+> For MongoDB Atlas, use the full Atlas connection string from your cluster.
 > Do not commit or share the real `.env` file. The repository ignores it.
 
 ## Authentication endpoints
@@ -95,6 +98,35 @@ Expected responses:
 - `200 OK` with a JWT token and user data
 - `400 Bad Request` for invalid payload
 - `401 Unauthorized` for bad credentials
+
+## Course resource endpoints
+
+These routes are public and do not require authentication.
+
+### Get all courses
+
+`GET /api/courses`
+
+### Get one course by code
+
+`GET /api/courses/:code`
+
+Example:
+
+```http
+GET http://localhost:4000/api/courses/ITELECT4
+```
+
+Expected response:
+
+```json
+{
+  "code": "ITELECT4",
+  "title": "IT Elective 4",
+  "units": 3,
+  "semester": "1st Semester 2026-2027"
+}
+```
 
 ## Submission resource endpoints
 
@@ -152,9 +184,25 @@ Expected responses:
 - `404 Not Found` if the record does not exist
 - `500 Internal Server Error` for unexpected failures
 
+## Seed and verification flow
+
+Run these commands after your `.env` file has valid values:
+
+```bash
+npm install
+npm run seed
+npm run dev
+```
+
+Then verify the app:
+
+1. `http://localhost:4000/health` should respond with `status: "ok"`.
+2. `http://localhost:4000/api/health` should respond with `status: "ok"` and `db: true` when MongoDB is connected.
+3. `http://localhost:4000/api/courses` should return the course list.
+
 ## Example Postman test flow
 
-The following sequence is the expected validation flow for the project. These steps still need to be executed locally after you add your actual MongoDB Atlas connection string and JWT secret.
+The following sequence is the expected validation flow for the project after you add your actual MongoDB connection string and JWT secret.
 
 1. Start the backend:
 
@@ -300,7 +348,21 @@ The existing frontend project may currently use `json-server` on port `3001` for
 
 This folder was not a valid Git repository when the backend project was initialized, so no Git branch or remote actions were created. The backend implementation is ready to be committed once the repository is initialized in the correct place.
 
+## Deployment handoff notes
+
+This backend is ready for a Vercel-style deployment pattern because the Express app is exported from `src/app.ts` and the local startup is isolated in `src/server.ts`.
+
+For deployment, set these environment variables in Vercel:
+
+```env
+PORT=4000
+MONGODB_URI=your_production_mongodb_uri
+JWT_SECRET=your_production_jwt_secret
+JWT_EXPIRES_IN=2h
+CORS_ORIGIN=https://your-frontend-domain.com
+```
+
 ## Verification status
 
-- `npm run build` was run after implementation and is part of the project verification workflow.
-- Postman and live MongoDB testing still require a valid Atlas connection string and a real JWT secret in a local `.env` file.
+- `npm run build` was run successfully and is part of the project verification workflow.
+- Postman and live MongoDB testing still require a valid MongoDB connection string and a real JWT secret in a local `.env` file.

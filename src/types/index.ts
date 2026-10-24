@@ -27,4 +27,11 @@ export type UserPayload = {
   username: string;
 };
 
+export type CourseDoc = {
+  code: string;
+  title: string;
+  units: number;
+  semester: string;
+};
+
 export type SubmissionPayload = ISubmission;
