@@ -1,14 +1,20 @@
-import type { Request, Response } from 'express';
+import type { Response } from 'express';
 import mongoose from 'mongoose';
 import { Submission } from '../models/Submission';
+import type { AuthRequest } from '../types';
 
 function isValidMongoId(id: string): boolean {
   return mongoose.Types.ObjectId.isValid(id);
 }
 
-export async function getSubmissions(req: Request, res: Response): Promise<void> {
+export async function getSubmissions(req: AuthRequest, res: Response): Promise<void> {
   try {
-    const submissions = await Submission.find({}).sort({ createdAt: -1 });
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required.' });
+      return;
+    }
+
+    const submissions = await Submission.find({ ownerId: req.user.id }).sort({ createdAt: -1 });
     res.status(200).json(submissions);
   } catch (error) {
     console.error('Get submissions error:', error);
@@ -16,8 +22,13 @@ export async function getSubmissions(req: Request, res: Response): Promise<void>
   }
 }
 
-export async function getSubmissionById(req: Request, res: Response): Promise<void> {
+export async function getSubmissionById(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required.' });
+      return;
+    }
+
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     if (!isValidMongoId(id)) {
@@ -25,7 +36,7 @@ export async function getSubmissionById(req: Request, res: Response): Promise<vo
       return;
     }
 
-    const submission = await Submission.findById(id);
+    const submission = await Submission.findOne({ _id: id, ownerId: req.user.id });
     if (!submission) {
       res.status(404).json({ message: 'Submission not found.' });
       return;
@@ -38,8 +49,13 @@ export async function getSubmissionById(req: Request, res: Response): Promise<vo
   }
 }
 
-export async function createSubmission(req: Request, res: Response): Promise<void> {
+export async function createSubmission(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required.' });
+      return;
+    }
+
     const { studentId, courseCode, repoUrl, submittedAt, score } = req.body;
 
     if (typeof studentId !== 'number' || !Number.isInteger(studentId) || studentId <= 0) {
@@ -68,6 +84,7 @@ export async function createSubmission(req: Request, res: Response): Promise<voi
     }
 
     const submission = await Submission.create({
+      ownerId: req.user.id,
       studentId,
       courseCode: courseCode.trim().toUpperCase(),
       repoUrl,
@@ -82,8 +99,13 @@ export async function createSubmission(req: Request, res: Response): Promise<voi
   }
 }
 
-export async function updateSubmission(req: Request, res: Response): Promise<void> {
+export async function updateSubmission(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required.' });
+      return;
+    }
+
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     if (!isValidMongoId(id)) {
@@ -113,8 +135,8 @@ export async function updateSubmission(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const updatedSubmission = await Submission.findByIdAndUpdate(
-      id,
+    const updatedSubmission = await Submission.findOneAndUpdate(
+      { _id: id, ownerId: req.user.id },
       {
         ...(courseCode !== undefined ? { courseCode: courseCode.trim().toUpperCase() } : {}),
         ...(repoUrl !== undefined ? { repoUrl } : {}),
@@ -136,8 +158,13 @@ export async function updateSubmission(req: Request, res: Response): Promise<voi
   }
 }
 
-export async function deleteSubmission(req: Request, res: Response): Promise<void> {
+export async function deleteSubmission(req: AuthRequest, res: Response): Promise<void> {
   try {
+    if (!req.user) {
+      res.status(401).json({ message: 'Authentication required.' });
+      return;
+    }
+
     const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
     if (!isValidMongoId(id)) {
@@ -145,7 +172,7 @@ export async function deleteSubmission(req: Request, res: Response): Promise<voi
       return;
     }
 
-    const submission = await Submission.findByIdAndDelete(id);
+    const submission = await Submission.findOneAndDelete({ _id: id, ownerId: req.user.id });
     if (!submission) {
       res.status(404).json({ message: 'Submission not found.' });
       return;

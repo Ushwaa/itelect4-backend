@@ -27,7 +27,8 @@ This project provides the backend API for the ITELECT4 frontend. It uses Express
 ## Local setup
 
 1. Create a `.env` file from `.env.example`.
-2. Replace the placeholder values with your MongoDB Atlas URI and JWT secret.
+2. Replace the empty values with your MongoDB URI and a strong JWT secret.
+   For Atlas, the URI must include the intended database name, for example `/itelect4`.
 3. Install dependencies:
 
 ```bash
@@ -55,7 +56,7 @@ CORS_ORIGIN=http://localhost:5173
 ```
 
 > For a local MongoDB installation, the URI usually looks like `mongodb://127.0.0.1:27017/itelect4`.
-> For MongoDB Atlas, use the full Atlas connection string from your cluster.
+> For MongoDB Atlas, use its full connection string and include `/itelect4` (or your chosen database name) before the query string.
 > Do not commit or share the real `.env` file. The repository ignores it.
 
 ## Authentication endpoints
@@ -122,7 +123,7 @@ Expected response:
 ```json
 {
   "code": "ITELECT4",
-  "title": "IT Elective 4",
+  "title": "IT Elective 4 - TypeScript Advanced Types",
   "units": 3,
   "semester": "1st Semester 2026-2027"
 }
@@ -184,7 +185,7 @@ Expected responses:
 - `404 Not Found` if the record does not exist
 - `500 Internal Server Error` for unexpected failures
 
-## Seed and verification flow
+## Seed and local verification flow
 
 Run these commands after your `.env` file has valid values:
 
@@ -196,9 +197,11 @@ npm run dev
 
 Then verify the app:
 
-1. `http://localhost:4000/health` should respond with `status: "ok"`.
-2. `http://localhost:4000/api/health` should respond with `status: "ok"` and `db: true` when MongoDB is connected.
-3. `http://localhost:4000/api/courses` should return the course list.
+1. `http://localhost:4000/api/health` should return `{"status":"ok","db":true}` when MongoDB connects. A connection failure returns HTTP 503 with `db: false`.
+2. `http://localhost:4000/api/courses` should return the three courses without a token.
+3. `http://localhost:4000/api/courses/ITELECT4` and `/api/courses/itelect4` should return the same course; an unknown code returns 404.
+4. Registration and login remain at `/api/auth/register` and `/api/auth/login`.
+5. All five submission routes require a JWT and only return or modify submissions created by that authenticated user.
 
 ## Example Postman test flow
 
@@ -350,17 +353,23 @@ This folder was not a valid Git repository when the backend project was initiali
 
 ## Deployment handoff notes
 
-This backend is ready for a Vercel-style deployment pattern because the Express app is exported from `src/app.ts` and the local startup is isolated in `src/server.ts`.
+The Express app is exported from `src/app.ts`; `src/server.ts` is only the local `app.listen()` entry point. The current deployed Vercel project already routes requests to the app, so no additional Vercel configuration file is required here.
 
-For deployment, set these environment variables in Vercel:
+In Vercel, set these environment variables for the Production environment (and Preview if you use preview deployments):
 
 ```env
 PORT=4000
 MONGODB_URI=your_production_mongodb_uri
 JWT_SECRET=your_production_jwt_secret
 JWT_EXPIRES_IN=2h
-CORS_ORIGIN=https://your-frontend-domain.com
+CORS_ORIGIN=http://localhost:5173
 ```
+
+For the initial backend deployment before the frontend is public, `http://localhost:5173` is a temporary value. `CORS_ORIGIN` should be the exact frontend origin, such as `https://your-frontend.example`, without a path or trailing slash. When the frontend is deployed, replace the temporary value with its URL and redeploy the backend. `PORT` is only needed for local server startup; `JWT_EXPIRES_IN` defaults to `7d` if omitted.
+
+For MongoDB Atlas, add a Network Access entry that permits Vercel connectivity. `0.0.0.0/0` allows connections from any IP; use it only with a strong database password and a least-privilege database user.
+
+After deploying, check `https://YOUR-BACKEND-URL.vercel.app/api/health` for `{"status":"ok","db":true}` and `https://YOUR-BACKEND-URL.vercel.app/api/courses` for the course list. Replace the placeholder with the URL Vercel gives you.
 
 ## Verification status
 

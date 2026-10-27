@@ -10,11 +10,15 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 dotenv.config();
 
 const app = express();
-const frontendOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+const configuredOrigin = process.env.CORS_ORIGIN?.trim();
+const allowedOrigins = new Set(
+  [configuredOrigin, process.env.NODE_ENV === 'production' ? undefined : 'http://localhost:5173']
+    .filter((origin): origin is string => Boolean(origin))
+);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
-    if (!origin || origin === frontendOrigin || origin === 'http://localhost:5173') {
+    if (!origin || allowedOrigins.has(origin)) {
       callback(null, true);
       return;
     }
@@ -44,13 +48,17 @@ app.use(async (req, _res, next) => {
   }
 });
 
-app.get('/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', db: isDbConnected() });
-});
+async function healthCheck(_req: express.Request, res: express.Response): Promise<void> {
+  try {
+    await connectDB();
+    res.status(200).json({ status: 'ok', db: isDbConnected() });
+  } catch {
+    res.status(503).json({ status: 'error', db: false });
+  }
+}
 
-app.get('/api/health', (_req, res) => {
-  res.status(200).json({ status: 'ok', db: isDbConnected() });
-});
+app.get('/health', healthCheck);
+app.get('/api/health', healthCheck);
 
 app.use('/api/courses', courseRoutes);
 app.use('/api/auth', authRoutes);

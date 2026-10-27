@@ -1,6 +1,8 @@
 import { Schema, model, type Document } from 'mongoose';
+import type { Types } from 'mongoose';
 
 export interface ISubmission extends Document {
+  ownerId: Types.ObjectId;
   studentId: number;
   courseCode: string;
   repoUrl: string;
@@ -12,6 +14,12 @@ export interface ISubmission extends Document {
 
 const submissionSchema = new Schema(
   {
+    ownerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      select: false,
+    },
     studentId: {
       type: Number,
       required: true,

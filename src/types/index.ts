@@ -2,6 +2,7 @@ import type { Request } from 'express';
 import type { Document, InferSchemaType } from 'mongoose';
 import type { IUser } from '../models/User';
 import type { ISubmission } from '../models/Submission';
+import type { ICourse } from '../models/Course';
 
 export type AuthRequest = Request & {
   user?: {
@@ -27,11 +28,6 @@ export type UserPayload = {
   username: string;
 };
 
-export type CourseDoc = {
-  code: string;
-  title: string;
-  units: number;
-  semester: string;
-};
+export type CourseDoc = Pick<ICourse, 'code' | 'title' | 'units' | 'semester'>;
 
 export type SubmissionPayload = ISubmission;
